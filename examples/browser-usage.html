@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord Logger - Browser Example</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .output {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+    </style>
+</head>
+<body>
+    <h1>Discord Logger - Browser Example</h1>
+    <p>This example demonstrates how to use the discord-logger package in a browser environment.</p>
+
+    <div class="container">
+        <h2>Configuration</h2>
+        <div class="form-group">
+            <label for="webhookUrl">Discord Webhook URL:</label>
+            <input type="url" id="webhookUrl" placeholder="https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN">
+        </div>
+        <div class="form-group">
+            <label for="githubToken">GitHub Token (Optional):</label>
+            <input type="password" id="githubToken" placeholder="ghp_your_github_token_here">
+        </div>
+        <button onclick="configureLogger()">Configure Logger</button>
+    </div>
+
+    <div class="container">
+        <h2>Logging Examples</h2>
+        <div class="form-group">
+            <label for="logLevel">Log Level:</label>
+            <select id="logLevel">
+                <option value="info">Info</option>
+                <option value="warn">Warning</option>
+                <option value="error">Error</option>
+                <option value="debug">Debug</option>
+                <option value="success">Success</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="logMessage">Message:</label>
+            <input type="text" id="logMessage" placeholder="Enter your log message">
+        </div>
+        <div class="form-group">
+            <label for="logData">Data (JSON):</label>
+            <textarea id="logData" rows="3" placeholder='{"key": "value"}'></textarea>
+        </div>
+        
+        <button onclick="sendLog()">Send Log</button>
+        <button onclick="testTimer()">Test Timer</button>
+        <button onclick="testBatch()">Test Batch</button>
+        <button onclick="testHealthCheck()">Health Check</button>
+        <button onclick="clearOutput()">Clear Output</button>
+    </div>
+
+    <div class="container">
+        <h2>Output</h2>
+        <div id="output" class="output">Ready to log messages...\n</div>
+    </div>
+
+    <!-- Include the discord-logger library -->
+    <script src="../dist/discord-logger.min.js"></script>
+    
+    <script>
+        let logger;
+        
+        function log(message, type = 'info') {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'warning' ? 'warning' : 'success';
+            output.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function configureLogger() {
+            try {
+                const webhookUrl = document.getElementById('webhookUrl').value;
+                const githubToken = document.getElementById('githubToken').value;
+
+                if (!webhookUrl) {
+                    log('❌ Please provide a Discord webhook URL', 'error');
+                    return;
+                }
+
+                // Initialize logger with configuration
+                logger = DiscordLogger.create({
+                    discordWebhookUrl: webhookUrl,
+                    githubToken: githubToken || undefined
+                });
+
+                log('✅ Logger configured successfully');
+            } catch (error) {
+                log(`❌ Configuration error: ${error.message}`, 'error');
+            }
+        }
+
+        async function sendLog() {
+            if (!logger) {
+                log('❌ Please configure logger first', 'error');
+                return;
+            }
+
+            try {
+                const level = document.getElementById('logLevel').value;
+                const message = document.getElementById('logMessage').value || 'Test message from browser';
+                const dataStr = document.getElementById('logData').value;
+                
+                let data = null;
+                if (dataStr) {
+                    try {
+                        data = JSON.parse(dataStr);
+                    } catch (e) {
+                        data = { rawData: dataStr };
+                    }
+                }
+
+                log(`📤 Sending ${level} log: ${message}`);
+
+                const result = await logger[level](message, data, {
+                    source: 'browser-example',
+                    userAgent: navigator.userAgent,
+                    timestamp: new Date().toISOString()
+                });
+
+                if (result.success) {
+                    log('✅ Log sent successfully');
+                } else {
+                    log(`❌ Log failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error sending log: ${error.message}`, 'error');
+            }
+        }
+
+        async function testTimer() {
+            if (!logger) {
+                log('❌ Please configure logger first', 'error');
+                return;
+            }
+
+            try {
+                log('⏱️ Starting timer test...');
+                const timer = logger.startTimer('browser-test');
+                
+                // Simulate some work
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                const result = await timer.stop('Browser timer test completed', {
+                    testData: 'Timer functionality working in browser'
+                });
+                
+                log(`✅ Timer completed: ${result.duration}ms`);
+            } catch (error) {
+                log(`❌ Timer error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testBatch() {
+            if (!logger) {
+                log('❌ Please configure logger first', 'error');
+                return;
+            }
+
+            try {
+                log('📦 Testing batch logging...');
+                
+                const logs = [
+                    { level: 'info', message: 'Batch log 1', data: { index: 1 } },
+                    { level: 'warn', message: 'Batch log 2', data: { index: 2 } },
+                    { level: 'success', message: 'Batch log 3', data: { index: 3 } }
+                ];
+                
+                await logger.batch(logs, { 
+                    source: 'browser-batch-test',
+                    timestamp: new Date().toISOString()
+                });
+                
+                log('✅ Batch logging completed');
+            } catch (error) {
+                log(`❌ Batch error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testHealthCheck() {
+            if (!logger) {
+                log('❌ Please configure logger first', 'error');
+                return;
+            }
+
+            try {
+                log('🏥 Running health check...');
+                const health = await logger.healthCheck();
+                
+                log(`Discord Status: ${health.discord.status}`);
+                log(`GitHub Status: ${health.github.status}`);
+                log(`Overall Status: ${health.overall.status}`);
+                
+                if (health.overall.status === 'healthy') {
+                    log('✅ All services are healthy');
+                } else {
+                    log('⚠️ Some services may have issues', 'warning');
+                }
+            } catch (error) {
+                log(`❌ Health check error: ${error.message}`, 'error');
+            }
+        }
+
+        function clearOutput() {
+            document.getElementById('output').innerHTML = 'Output cleared...\n';
+        }
+
+        // Initialize with some helpful information
+        window.addEventListener('load', function() {
+            log('🌐 Discord Logger Browser Example Loaded');
+            log('📝 Please configure the logger with your Discord webhook URL to get started');
+            
+            // Check if DiscordLogger is available
+            if (typeof DiscordLogger !== 'undefined') {
+                log('✅ Discord Logger library loaded successfully');
+                log(`📦 Version: ${DiscordLogger.version || 'unknown'}`);
+            } else {
+                log('❌ Discord Logger library not found', 'error');
+            }
+        });
+    </script>
+</body>
+</html>

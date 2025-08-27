@@ -1,0 +1,398 @@
+name: Discord Logger CI/CD
+# Author: Duong Tran Quang DTDucas
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  NODE_VERSION: '18.x'
+
+jobs:
+  test:
+    name: Test Discord Logger Package
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x, 20.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run linting
+      run: npm run lint
+
+    - name: Run tests
+      run: npm test
+
+    - name: Run validation
+      run: npm run validate
+
+    - name: Generate coverage report
+      run: npm run test:coverage
+
+    - name: Upload coverage to Codecov
+      if: matrix.node-version == '18.x'
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage/lcov.info
+        flags: discord-logger
+        name: discord-logger-coverage
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+  build:
+    name: Build Package
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build package
+      run: npm run build
+
+    - name: Create package
+      run: npm pack
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: discord-logger-package
+        path: |
+          discord-logger-*.tgz
+          dist/
+        retention-days: 30
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run security audit
+      run: npm audit --audit-level=moderate
+
+    - name: Run dependency check
+      run: npx audit-ci --moderate
+
+    - name: Notify Discord on Security Issues
+      if: failure()
+      run: |
+        curl -X POST "${{ secrets.DISCORD_WEBHOOK_SECURITY }}" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"embeds\": [{
+              \"title\": \"🚨 Security Alert - Discord Logger\",
+              \"description\": \"Security vulnerabilities detected in package dependencies\",
+              \"color\": 15158332,
+              \"fields\": [
+                {
+                  \"name\": \"Repository\",
+                  \"value\": \"https://github.com/${{ github.repository }}\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"Branch\",
+                  \"value\": \"${{ github.ref_name }}\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"Workflow\",
+                  \"value\": \"[View Details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\",
+                  \"inline\": false
+                }
+              ],
+              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\"
+            }]
+          }"
+
+  browser-test:
+    name: Browser Compatibility Test
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build browser bundle
+      run: npm run build:browser
+
+    - name: Test browser bundle size
+      run: |
+        BUNDLE_SIZE=$(stat -c%s "dist/discord-logger.min.js")
+        echo "Bundle size: $BUNDLE_SIZE bytes"
+        if [ $BUNDLE_SIZE -gt 100000 ]; then
+          echo "Warning: Bundle size exceeds 100KB"
+        fi
+
+    - name: Install Playwright
+      run: npx playwright install --with-deps chromium
+
+    - name: Run browser tests
+      run: npx playwright test --project=chromium
+
+  publish:
+    name: Publish Package
+    runs-on: ubuntu-latest
+    needs: [test, build, security, browser-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        registry-url: 'https://registry.npmjs.org'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build package
+      run: npm run build
+
+    - name: Check if version exists
+      id: version-check
+      run: |
+        PACKAGE_VERSION=$(node -p "require('./package.json').version")
+        PACKAGE_NAME=$(node -p "require('./package.json').name")
+        
+        if npm view $PACKAGE_NAME@$PACKAGE_VERSION version > /dev/null 2>&1; then
+          echo "version-exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "version-exists=false" >> $GITHUB_OUTPUT
+        fi
+        
+        echo "package-version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
+        echo "package-name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+
+    - name: Publish to npm
+      if: steps.version-check.outputs.version-exists == 'false'
+      run: npm publish
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+    - name: Create GitHub Release
+      if: steps.version-check.outputs.version-exists == 'false'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ steps.version-check.outputs.package-version }}
+        name: Discord Logger v${{ steps.version-check.outputs.package-version }}
+        body: |
+          ## Discord Logger Release v${{ steps.version-check.outputs.package-version }}
+          
+          ### 📦 Installation
+          ```bash
+          npm install ${{ steps.version-check.outputs.package-name }}@${{ steps.version-check.outputs.package-version }}
+          ```
+          
+          ### 🔗 Package Links
+          - **NPM**: https://www.npmjs.com/package/${{ steps.version-check.outputs.package-name }}/v/${{ steps.version-check.outputs.package-version }}
+          - **GitHub**: https://github.com/${{ github.repository }}
+          - **Documentation**: https://github.com/${{ github.repository }}#readme
+          
+          ### ✨ Features
+          - 🚀 Universal: Works in Node.js and browsers
+          - 📨 Discord Integration: Send structured logs to Discord channels
+          - 📁 GitHub Storage: Automatic upload for large content
+          - ⚡ Rate Limited: Built-in rate limiting and retry logic
+          - 🎯 Context Logging: Request correlation and context tracking
+          - ⏱️ Performance Timing: Built-in timer functionality
+          - 📦 Batch Processing: Efficient batch logging
+          - 🔧 TypeScript Support: Full TypeScript definitions
+          
+          ### 📋 Changes
+          Auto-generated release from main branch.
+          
+          ### 🙏 Thanks
+          Thank you for using Discord Logger!
+        draft: false
+        prerelease: false
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Update package-lock.json
+      if: steps.version-check.outputs.version-exists == 'false'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        npm install --package-lock-only
+        git add package-lock.json
+        git commit -m "chore: update package-lock.json after publish" || exit 0
+        git push
+
+    - name: Notify Discord Success
+      if: steps.version-check.outputs.version-exists == 'false'
+      run: |
+        curl -X POST "${{ secrets.DISCORD_WEBHOOK_RELEASES }}" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"embeds\": [{
+              \"title\": \"🎉 Discord Logger Published Successfully\",
+              \"description\": \"Version ${{ steps.version-check.outputs.package-version }} has been published to NPM and GitHub\",
+              \"color\": 5763719,
+              \"fields\": [
+                {
+                  \"name\": \"📦 Package\",
+                  \"value\": \"[${{ steps.version-check.outputs.package-name }}](https://www.npmjs.com/package/${{ steps.version-check.outputs.package-name }})\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"🏷️ Version\",
+                  \"value\": \"${{ steps.version-check.outputs.package-version }}\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"📊 Repository\",
+                  \"value\": \"[GitHub](https://github.com/${{ github.repository }})\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"🚀 Release\",
+                  \"value\": \"[v${{ steps.version-check.outputs.package-version }}](https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version-check.outputs.package-version }})\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"💾 Installation\",
+                  \"value\": \"\`\`\`bash\\nnpm install ${{ steps.version-check.outputs.package-name }}\`\`\`\",
+                  \"inline\": false
+                }
+              ],
+              \"footer\": {
+                \"text\": \"Discord Logger CI/CD • by DTDucas\"
+              },
+              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\"
+            }]
+          }"
+
+    - name: Notify Discord Skipped
+      if: steps.version-check.outputs.version-exists == 'true'
+      run: |
+        curl -X POST "${{ secrets.DISCORD_WEBHOOK_RELEASES }}" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"embeds\": [{
+              \"title\": \"⚠️ Discord Logger Publish Skipped\",
+              \"description\": \"Version ${{ steps.version-check.outputs.package-version }} already exists on NPM\",
+              \"color\": 16776960,
+              \"fields\": [
+                {
+                  \"name\": \"📦 Package\",
+                  \"value\": \"${{ steps.version-check.outputs.package-name }}\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"🏷️ Version\",
+                  \"value\": \"${{ steps.version-check.outputs.package-version }}\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"ℹ️ Info\",
+                  \"value\": \"Increment version in package.json to publish\",
+                  \"inline\": false
+                }
+              ],
+              \"footer\": {
+                \"text\": \"Discord Logger CI/CD • by DTDucas\"
+              },
+              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\"
+            }]
+          }"
+
+  notify-failure:
+    name: Notify Build Failure
+    runs-on: ubuntu-latest
+    needs: [test, build, security, browser-test, publish]
+    if: failure()
+    
+    steps:
+    - name: Notify Discord Failure
+      run: |
+        curl -X POST "${{ secrets.DISCORD_WEBHOOK_ERRORS }}" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"embeds\": [{
+              \"title\": \"❌ Discord Logger Build Failed\",
+              \"description\": \"The CI/CD pipeline encountered errors\",
+              \"color\": 15158332,
+              \"fields\": [
+                {
+                  \"name\": \"📂 Repository\",
+                  \"value\": \"[GitHub](https://github.com/${{ github.repository }})\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"🌿 Branch\",
+                  \"value\": \"${{ github.ref_name }}\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"🔨 Build\",
+                  \"value\": \"[View Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\",
+                  \"inline\": false
+                },
+                {
+                  \"name\": \"💡 Action Required\",
+                  \"value\": \"Check the workflow logs and fix any issues\",
+                  \"inline\": false
+                }
+              ],
+              \"footer\": {
+                \"text\": \"Discord Logger CI/CD • by DTDucas\"
+              },
+              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\"
+            }]
+          }"

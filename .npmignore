@@ -1,0 +1,78 @@
+# Development files
+.github/
+examples/
+test/
+tests/
+*.test.js
+*.spec.js
+coverage/
+.nyc_output/
+
+# Build tools
+webpack.config.js
+.babelrc
+.eslintrc*
+.prettierrc*
+tsconfig.json
+jest.config.js
+playwright.config.js
+
+# Documentation
+docs/
+*.md
+!README.md
+!LICENSE
+
+# CI/CD
+.travis.yml
+.circleci/
+.github/
+Jenkinsfile
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Environment files
+.env*
+!.env.example
+
+# Cache directories
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+
+# Lock files (keep package-lock.json for npm)
+yarn.lock
+pnpm-lock.yaml
+
+# Development dependencies
+node_modules/
+
+# Scripts
+scripts/
+tools/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Editor backups
+*~
+*.bak
+*.orig
+
+# Source maps (optional, uncomment if you don't want to include them)
+# *.map
