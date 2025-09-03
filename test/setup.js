@@ -31,10 +31,10 @@ afterAll(() => {
 global.TestUtils = {
   // Mock Discord webhook URL
   MOCK_WEBHOOK_URL: 'https://discord.com/api/webhooks/123456789/mock_webhook_token',
-  
+
   // Mock GitHub token
   MOCK_GITHUB_TOKEN: 'ghp_mock_github_token_for_testing',
-  
+
   // Helper to create mock response
   mockResponse: (status = 200, data = {}) => ({
     status,
@@ -43,7 +43,7 @@ global.TestUtils = {
     config: {},
     statusText: 'OK'
   }),
-  
+
   // Helper to create mock error
   mockError: (message = 'Mock error', status = 500) => {
     const error = new Error(message);
@@ -54,17 +54,17 @@ global.TestUtils = {
     };
     return error;
   },
-  
+
   // Helper to wait for promises
   wait: (ms = 100) => new Promise(resolve => setTimeout(resolve, ms)),
-  
+
   // Helper to create test data
   createTestData: (size = 'small') => {
     const sizes = {
       small: { message: 'test', data: { key: 'value' } },
-      medium: { 
-        message: 'test message', 
-        data: { 
+      medium: {
+        message: 'test message',
+        data: {
           key: 'value',
           nested: { deep: 'data' },
           array: [1, 2, 3, 4, 5]
@@ -108,14 +108,14 @@ jest.mock('axios', () => ({
 }));
 
 // Mock setTimeout and setInterval for timer tests
-jest.useFakeTimers();
+jest.useFakeTimers('legacy');
 
 // Add custom matchers
 expect.extend({
   toBeValidWebhookUrl(received) {
     const webhookRegex = /^https:\/\/discord\.com\/api\/webhooks\/\d+\/[\w-]+$/;
     const pass = typeof received === 'string' && webhookRegex.test(received);
-    
+
     if (pass) {
       return {
         message: () => `expected ${received} not to be a valid Discord webhook URL`,
@@ -128,11 +128,11 @@ expect.extend({
       };
     }
   },
-  
+
   toBeValidGitHubToken(received) {
     const tokenRegex = /^(ghp_|gho_|ghu_|ghs_|ghr_|github_pat_)[a-zA-Z0-9_]+$/;
     const pass = typeof received === 'string' && tokenRegex.test(received);
-    
+
     if (pass) {
       return {
         message: () => `expected ${received} not to be a valid GitHub token format`,
@@ -154,6 +154,8 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Clean up after tests
 afterAll(async () => {
+  // Use real timers for cleanup
+  jest.useRealTimers();
   // Clean up any open handles
   await new Promise(resolve => setTimeout(resolve, 100));
 });

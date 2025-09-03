@@ -21,14 +21,14 @@ describe('Discord Logger', () => {
     test('should configure discord webhook URL', () => {
       const webhookUrl = TestUtils.MOCK_WEBHOOK_URL;
       logger.configure({ discordWebhookUrl: webhookUrl });
-      
+
       expect(logger.discordService.webhookUrl).toBe(webhookUrl);
     });
 
     test('should configure github token', () => {
       const token = TestUtils.MOCK_GITHUB_TOKEN;
       logger.configure({ githubToken: token });
-      
+
       expect(logger.githubService.githubToken).toBe(token);
     });
 
@@ -47,15 +47,15 @@ describe('Discord Logger', () => {
 
   describe('Basic Logging', () => {
     beforeEach(() => {
-      logger.configure({ 
-        discordWebhookUrl: TestUtils.MOCK_WEBHOOK_URL 
+      logger.configure({
+        discordWebhookUrl: TestUtils.MOCK_WEBHOOK_URL
       });
       mockedAxios.post.mockResolvedValue(TestUtils.mockResponse(200, { success: true }));
     });
 
     test('should log info message', async () => {
       const result = await logger.info('Test info message', { key: 'value' });
-      
+
       expect(result.success).toBe(true);
       expect(mockedAxios.post).toHaveBeenCalledWith(
         TestUtils.MOCK_WEBHOOK_URL,
@@ -73,7 +73,7 @@ describe('Discord Logger', () => {
 
     test('should log warning message', async () => {
       const result = await logger.warn('Test warning', { threshold: '80%' });
-      
+
       expect(result.success).toBe(true);
       expect(mockedAxios.post).toHaveBeenCalledWith(
         TestUtils.MOCK_WEBHOOK_URL,
@@ -93,7 +93,7 @@ describe('Discord Logger', () => {
     test('should log error with Error object', async () => {
       const error = new Error('Test error');
       const result = await logger.error('Error occurred', error, { context: 'test' });
-      
+
       expect(result.success).toBe(true);
       expect(mockedAxios.post).toHaveBeenCalledWith(
         TestUtils.MOCK_WEBHOOK_URL,
@@ -112,7 +112,7 @@ describe('Discord Logger', () => {
 
     test('should log success message', async () => {
       const result = await logger.success('Task completed', { id: 123 }, { status: 'done' });
-      
+
       expect(result.success).toBe(true);
       expect(mockedAxios.post).toHaveBeenCalledWith(
         TestUtils.MOCK_WEBHOOK_URL,
@@ -131,7 +131,7 @@ describe('Discord Logger', () => {
 
     test('should log debug message', async () => {
       const result = await logger.debug('Debug info', { variable: 'value' });
-      
+
       expect(result.success).toBe(true);
       expect(mockedAxios.post).toHaveBeenCalledWith(
         TestUtils.MOCK_WEBHOOK_URL,
@@ -157,15 +157,15 @@ describe('Discord Logger', () => {
 
     test('should create and stop timer', async () => {
       const timer = logger.startTimer('test-operation');
-      
+
       expect(timer).toHaveProperty('stop');
       expect(typeof timer.stop).toBe('function');
-      
+
       // Advance time
       jest.advanceTimersByTime(1000);
-      
+
       const result = await timer.stop('Operation completed', { records: 100 });
-      
+
       expect(result).toHaveProperty('duration');
       expect(result).toHaveProperty('label', 'test-operation');
       expect(result.duration).toBeGreaterThan(0);
@@ -180,7 +180,7 @@ describe('Discord Logger', () => {
 
     test('should create context logger', () => {
       const contextLogger = logger.withContext({ requestId: 'req_123' });
-      
+
       expect(contextLogger).toHaveProperty('info');
       expect(contextLogger).toHaveProperty('warn');
       expect(contextLogger).toHaveProperty('error');
@@ -191,9 +191,9 @@ describe('Discord Logger', () => {
 
     test('should include context in logs', async () => {
       const contextLogger = logger.withContext({ requestId: 'req_123', userId: 'user_456' });
-      
+
       await contextLogger.info('Context test message');
-      
+
       expect(mockedAxios.post).toHaveBeenCalledWith(
         TestUtils.MOCK_WEBHOOK_URL,
         expect.objectContaining({
@@ -228,10 +228,10 @@ describe('Discord Logger', () => {
       ];
 
       const results = await logger.batch(logs, { batchId: 'batch_001' });
-      
+
       expect(results).toHaveLength(3);
       expect(mockedAxios.post).toHaveBeenCalledTimes(3);
-      
+
       // Check that each call includes batch metadata
       for (let i = 0; i < 3; i++) {
         expect(mockedAxios.post).toHaveBeenNthCalledWith(
@@ -258,12 +258,12 @@ describe('Discord Logger', () => {
   describe('Health Check', () => {
     test('should return health status', async () => {
       logger.configure({ discordWebhookUrl: TestUtils.MOCK_WEBHOOK_URL });
-      
+
       // Mock successful Discord health check
       mockedAxios.get.mockResolvedValueOnce(TestUtils.mockResponse(405)); // Discord returns 405 for GET on webhook
-      
+
       const health = await logger.healthCheck();
-      
+
       expect(health).toHaveProperty('discord');
       expect(health).toHaveProperty('github');
       expect(health).toHaveProperty('overall');
@@ -271,9 +271,14 @@ describe('Discord Logger', () => {
     });
 
     test('should handle disabled services', async () => {
-      // Don't configure any services
+      // Reset logger to have no configuration
+      logger.configure({
+        discordWebhookUrl: null,
+        githubToken: null
+      });
+
       const health = await logger.healthCheck();
-      
+
       expect(health.discord.status).toBe('disabled');
       expect(health.github.status).toBe('disabled');
       expect(health.overall.status).toBe('disabled');
@@ -287,9 +292,9 @@ describe('Discord Logger', () => {
 
     test('should handle network errors gracefully', async () => {
       mockedAxios.post.mockRejectedValue(new Error('Network error'));
-      
+
       const result = await logger.info('Test message');
-      
+
       expect(result.success).toBe(false);
       expect(result.error).toBe('Network error');
     });
@@ -301,9 +306,9 @@ describe('Discord Logger', () => {
           headers: { 'retry-after': '1' }
         }
       }).mockResolvedValueOnce(TestUtils.mockResponse(200, { success: true }));
-      
+
       const result = await logger.info('Rate limited message');
-      
+
       // Should eventually succeed after retry
       expect(result.success).toBe(true);
     });
@@ -314,7 +319,7 @@ describe('Discord Logger', () => {
       const customLogger = LoggerService.create({
         discordWebhookUrl: TestUtils.MOCK_WEBHOOK_URL
       });
-      
+
       expect(customLogger).toBeInstanceOf(LoggerService);
       expect(customLogger.discordService.webhookUrl).toBe(TestUtils.MOCK_WEBHOOK_URL);
     });
@@ -324,7 +329,7 @@ describe('Discord Logger', () => {
         TestUtils.MOCK_WEBHOOK_URL,
         TestUtils.MOCK_GITHUB_TOKEN
       );
-      
+
       expect(customLogger).toBeInstanceOf(LoggerService);
       expect(customLogger.discordService.webhookUrl).toBe(TestUtils.MOCK_WEBHOOK_URL);
       expect(customLogger.githubService.githubToken).toBe(TestUtils.MOCK_GITHUB_TOKEN);
