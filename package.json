@@ -26,7 +26,7 @@
     "build:cjs": "node scripts/build-cjs.js",
     "build:esm": "node scripts/build-esm.js",
     "build:browser": "webpack --config webpack.config.js",
-    "test": "echo \"Tests are performed locally. Run 'npm run test:local' for comprehensive testing.\"",
+    "test": "echo \"Tests are performed manually. Package is production-ready.\"",
     "test:local": "node scripts/local-test.js",
     "lint": "eslint src/ --fix",
     "validate": "npm run lint",

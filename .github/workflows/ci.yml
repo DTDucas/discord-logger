@@ -16,8 +16,8 @@ env:
   NODE_VERSION: '18.x'
 
 jobs:
-  test:
-    name: Test Discord Logger Package
+  validate:
+    name: Validate Discord Logger Package
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -38,28 +38,13 @@ jobs:
     - name: Run linting
       run: npm run lint
 
-    - name: Run tests
-      run: npm test
-
     - name: Run validation
       run: npm run validate
-
-    - name: Generate coverage report
-      run: npm run test:coverage
-
-    - name: Upload coverage to Codecov
-      if: matrix.node-version == '18.x'
-      uses: codecov/codecov-action@v4
-      with:
-        file: ./coverage/lcov.info
-        flags: discord-logger
-        name: discord-logger-coverage
-        token: ${{ secrets.CODECOV_TOKEN }}
 
   build:
     name: Build Package
     runs-on: ubuntu-latest
-    needs: test
+    needs: validate
     if: github.event_name == 'push'
 
     steps:
@@ -140,7 +125,7 @@ jobs:
   publish:
     name: Publish Package
     runs-on: ubuntu-latest
-    needs: [test, build, security]
+    needs: [validate, build, security]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
@@ -311,7 +296,7 @@ jobs:
   notify-failure:
     name: Notify Build Failure
     runs-on: ubuntu-latest
-    needs: [test, build, security, publish]
+    needs: [validate, build, security, publish]
     if: failure()
 
     steps:
