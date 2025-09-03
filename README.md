@@ -1,8 +1,8 @@
-# Discord Logger
+# Discord Logger Pro
 
 A powerful Discord webhook logger with GitHub file storage for large content. Works seamlessly in both Node.js and browser environments.
 
-[![npm version](https://badge.fury.io/js/discord-logger.svg)](https://badge.fury.io/js/discord-logger)
+[![npm version](https://badge.fury.io/js/discord-logger-pro.svg)](https://badge.fury.io/js/discord-logger-pro)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js CI](https://github.com/DTDucas/discord-logger/workflows/Node.js%20CI/badge.svg)](https://github.com/DTDucas/discord-logger/actions)
 
@@ -21,7 +21,7 @@ A powerful Discord webhook logger with GitHub file storage for large content. Wo
 ## Installation
 
 ```bash
-npm install discord-logger
+npm install discord-logger-pro
 ```
 
 ## Quick Start
@@ -29,7 +29,7 @@ npm install discord-logger
 ### Node.js
 
 ```javascript
-const logger = require("discord-logger");
+const logger = require("discord-logger-pro");
 
 // Configure the logger
 logger.configure({
@@ -47,7 +47,7 @@ await logger.success("Task completed", data, response);
 ### Browser
 
 ```html
-<script src="https://unpkg.com/discord-logger/dist/discord-logger.min.js"></script>
+<script src="https://unpkg.com/discord-logger-pro/dist/discord-logger.min.js"></script>
 <script>
   const logger = DiscordLogger.create({
     discordWebhookUrl: "YOUR_WEBHOOK_URL",
@@ -60,7 +60,7 @@ await logger.success("Task completed", data, response);
 ### ES Modules
 
 ```javascript
-import logger, { create } from "discord-logger";
+import logger, { create } from "discord-logger-pro";
 
 // Use default instance
 await logger.info("ES Module logging works!");
@@ -85,7 +85,7 @@ logger.configure({
 ### Advanced Configuration
 
 ```javascript
-const logger = require("discord-logger").create({
+const logger = require("discord-logger-pro").create({
   discord: {
     webhookUrl: "https://discord.com/api/webhooks/ID/TOKEN",
     serviceName: "My Application",
@@ -245,7 +245,7 @@ await logger.info("Processing large dataset", largeData);
 ### Multiple Logger Instances
 
 ```javascript
-const { create } = require("discord-logger");
+const { create } = require("discord-logger-pro");
 
 // Application logger
 const appLogger = create({
@@ -273,7 +273,7 @@ await errorLogger.error("Critical error occurred", error);
 const {
   DiscordWebhookService,
   GitHubStorageService,
-} = require("discord-logger");
+} = require("discord-logger-pro");
 
 // Create custom services
 const discord = new DiscordWebhookService();
@@ -302,7 +302,7 @@ The library works in modern browsers and includes polyfills for:
 
 ```html
 <!-- Use CDN -->
-<script src="https://unpkg.com/discord-logger/dist/discord-logger.min.js"></script>
+<script src="https://unpkg.com/discord-logger-pro/dist/discord-logger.min.js"></script>
 
 <!-- Or self-host -->
 <script src="/path/to/discord-logger.min.js"></script>
@@ -322,7 +322,7 @@ The library works in modern browsers and includes polyfills for:
 The package includes comprehensive TypeScript definitions:
 
 ```typescript
-import logger, { LoggerService, LogOptions } from "discord-logger";
+import logger, { LoggerService, LogOptions } from "discord-logger-pro";
 
 const customLogger: LoggerService = logger.create({
   discordWebhookUrl: process.env.DISCORD_WEBHOOK!,

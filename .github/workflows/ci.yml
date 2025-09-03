@@ -94,7 +94,7 @@ jobs:
     - name: Notify Discord on Security Issues
       if: failure()
       run: |
-        curl -X POST "${{ secrets.DISCORD_WEBHOOK_SECURITY }}" \
+        curl -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
           -H "Content-Type: application/json" \
           -d "{
             \"embeds\": [{
@@ -218,7 +218,7 @@ jobs:
     - name: Notify Discord Success
       if: steps.version-check.outputs.version-exists == 'false'
       run: |
-        curl -X POST "${{ secrets.DISCORD_WEBHOOK_RELEASES }}" \
+        curl -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
           -H "Content-Type: application/json" \
           -d "{
             \"embeds\": [{
@@ -262,7 +262,7 @@ jobs:
     - name: Notify Discord Skipped
       if: steps.version-check.outputs.version-exists == 'true'
       run: |
-        curl -X POST "${{ secrets.DISCORD_WEBHOOK_RELEASES }}" \
+        curl -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
           -H "Content-Type: application/json" \
           -d "{
             \"embeds\": [{
@@ -302,7 +302,7 @@ jobs:
     steps:
     - name: Notify Discord Failure
       run: |
-        curl -X POST "${{ secrets.DISCORD_WEBHOOK_ERRORS }}" \
+        curl -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
           -H "Content-Type: application/json" \
           -d "{
             \"embeds\": [{
