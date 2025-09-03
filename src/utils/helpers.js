@@ -92,7 +92,7 @@ class Helpers {
 
   static validateWebhookUrl(url) {
     if (!url) return false;
-    const webhookRegex = /^https:\/\/discord\.com\/api\/webhooks\/\d+\/[\w-]+$/;
+    const webhookRegex = /^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\/\d+\/[\w-]+$/;
     return webhookRegex.test(url);
   }
 

@@ -6,7 +6,7 @@ class DiscordWebhookService {
   constructor(config = {}) {
     // Core configuration
     this.webhookUrl = config.webhookUrl || null;
-    this.serviceName = config.serviceName || 'Discord Logger';
+    this.serviceName = config.serviceName || 'Logger Service';
     this.avatarUrl = config.avatarUrl || 'https://cdn.discordapp.com/embed/avatars/0.png';
 
     // Discord API limits - configurable with safe defaults
