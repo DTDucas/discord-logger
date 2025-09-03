@@ -1,6 +1,6 @@
 {
   "name": "discord-logger-pro",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A powerful Discord webhook logger with GitHub file storage for large content. Works in both Node.js and browser environments.",
   "main": "src/index.js",
   "module": "src/index.esm.js",
